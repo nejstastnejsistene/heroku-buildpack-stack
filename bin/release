@@ -1,0 +1,6 @@
+#!/bin/bash
+cat << 'EOF'
+---
+default_process_types:
+    web: PATH=$PATH:$HOME/.local/bin stack-run
+EOF

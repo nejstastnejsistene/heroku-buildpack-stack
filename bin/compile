@@ -1,0 +1,66 @@
+#!/bin/bash
+
+set -eo pipefail
+
+indent() {
+    sed -u 's/^/       /'
+}
+
+mkdir -p "$1" "$2"
+build=$(cd "$1/" && pwd)
+cache=$(cd "$2/" && pwd)
+
+gmp="$cache/gmp-6.0.0"
+libs="$gmp/.libs"
+export LIBRARY_PATH="$LIBRARY_PATH:$libs"
+
+if [ ! -d "$libs" ]; then
+    echo '-----> Downloading libgmp'
+    curl -sL "https://gmplib.org/download/gmp/gmp-6.0.0a.tar.xz" | tar -xJC "$cache"
+    cd "$gmp"
+    echo '-----> Building libgmp'
+    ./configure |& indent
+    make |& indent
+    echo '-----> Checking libgmp'
+    make check |& indent
+fi
+
+bin="$build/.local/bin"
+mkdir -p "$bin"
+export PATH="$PATH:$bin"
+
+if [ ! "$(which stack)" ]; then
+    version=0.1.6.0
+    slug="stack-$version-linux-x86_64"
+    url="https://github.com/commercialhaskell/stack/releases/download/v$version/$slug.tar.gz"
+    if [ ! -x "$cache/$slug/stack" ]; then
+        echo '-----> Downloading stack'
+        curl -sL "$url" | tar -xzC "$cache"
+    fi
+    if [ ! -f "$bin/slack" ]; then
+        echo '-----> Installing stack'
+        cp "$cache/$slug/stack" "$bin"
+    fi
+fi
+
+if [ ! "$(which stack-run)" ]; then
+    echo '-----> Installing stack-run'
+    cat << 'EOF' > "$bin/stack-run"
+#!/bin/bash
+$(grep ^executable *.cabal | head -n1 | awk '{print $2}')
+EOF
+    chmod +x "$bin/stack-run"
+fi
+
+export HOME="$cache"
+cd "$build"
+
+echo '-----> Setting up stack'
+stack setup |& indent
+
+echo '-----> Installing app'
+mkdir -p "$cache/.stack-work"
+ln -s "$cache/.stack-work" "$build"
+stack build |& indent
+cp $(stack path --local-install-root)/bin/* "$bin"
+rm "$build/.stack-work"
