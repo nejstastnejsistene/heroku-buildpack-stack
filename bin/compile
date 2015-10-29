@@ -6,7 +6,7 @@ indent() {
     sed -u 's/^/       /'
 }
 
-mkdir -p "$1" "$2"
+mkdir -p "$1" "$2" "$3"
 build=$(cd "$1/" && pwd)
 cache=$(cd "$2/" && pwd)
 
@@ -25,9 +25,9 @@ if [ ! -d "$libs" ]; then
     make check |& indent
 fi
 
-bin="$build/.local/bin"
+bin="$build/.vendor/stack/bin"
 mkdir -p "$bin"
-export PATH="$PATH:$bin"
+export PATH="$bin:$PATH"
 
 if [ ! "$(which stack)" ]; then
     version=0.1.6.0
